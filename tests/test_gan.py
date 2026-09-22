@@ -51,9 +51,10 @@ class TestCriticReceipts(unittest.TestCase):
     def test_witness_carries_prediction_and_measurement(self):
         r = Runner(seed=3, pop_size=4)
         r.run(2)
-        with_pred_meas = [c for c in r.cells
+        binds = [c for c in r.cells if '"BIND"' in c.state_json]
+        with_pred_meas = [c for c in binds
                           if c.prediction and "measured_speedup" in c.metrics]
-        self.assertEqual(len(with_pred_meas), len(r.cells))
+        self.assertEqual(len(with_pred_meas), len(binds))
         rep = verify_log(r.cells)
         self.assertGreater(rep.critic_pairs, 0)
         self.assertIsNotNone(rep.critic_mse)

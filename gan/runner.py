@@ -23,6 +23,7 @@ from harness.score import composite, field_bests
 from harness.witness import WitnessCell
 from .mockbench import MockBench
 from .population import Candidate, Population
+from .qd import QDArchive
 
 
 @dataclass
@@ -100,7 +101,10 @@ class Runner:
     def run(self, generations: int = 4) -> RunReport:
         records: List[GenRecord] = []
         stagnant = 0
+        archive = QDArchive()
         pop = [self._evaluate(c) for c in self.pop.genesis(self.bench)]
+        for c in pop:
+            archive.try_add(c)
         best_cost = min(c.measured_cost for c in pop)
         for gen in range(generations):
             rep = verify_log(self.cells)
@@ -110,6 +114,12 @@ class Runner:
                 stagnant = 0
             else:
                 stagnant += 1
+            cov, cov_total = archive.coverage()
+            self._emit("VIEW", {"generation": gen, "best_id": best.id,
+                                "best_speedup": round(best.measured_speedup, 6),
+                                "coverage": cov, "coverage_total": cov_total,
+                                "qd_score": round(archive.qd_score(), 6),
+                                "critic_mse": rep.critic_mse})
             records.append(GenRecord(
                 generation=gen, best_id=best.id, best_cost=best.measured_cost,
                 best_speedup=best.measured_speedup,
@@ -122,6 +132,8 @@ class Runner:
             pop = [elite] + [
                 self._evaluate(self.pop.mutate(survivor, self.bench, gen + 1, heat))
                 for _ in range(self.pop.size - 1)]
+            for c in pop[1:]:
+                archive.try_add(c)
 
         rep = verify_log(self.cells)
         run_gates(self.cells, rep)

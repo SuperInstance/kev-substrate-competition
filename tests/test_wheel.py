@@ -78,5 +78,31 @@ class TestContinuation(unittest.TestCase):
         self.assertFalse(ok)
 
 
+class TestWheelR7QDIntegration(unittest.TestCase):
+    def test_runner_populates_archive_and_emits_view_cells(self):
+        r = Runner(seed=7, pop_size=8)
+        rep = r.run(4)
+        views = [c for c in r.cells if '"VIEW"' in c.state_json]
+        self.assertEqual(len(views), 4, "one VIEW summary cell per generation")
+        import json
+        last = json.loads(views[-1].state_json)["payload"]
+        self.assertGreaterEqual(last["coverage"], 1)
+        self.assertGreater(last["qd_score"], 0.0)
+
+    def test_archive_diversity_grows_across_generations(self):
+        r = Runner(seed=13, pop_size=10)
+        r.run(6)
+        import json
+        views = [json.loads(c.state_json)["payload"]
+                 for c in r.cells if '"VIEW"' in c.state_json]
+        coverage_curve = [v["coverage"] for v in views]
+        self.assertGreaterEqual(coverage_curve[-1], coverage_curve[0])
+
+    def test_determinism_preserved_with_qd(self):
+        ra = run_generations(seed=11, pop_size=6, generations=3)
+        rb = run_generations(seed=11, pop_size=6, generations=3)
+        self.assertEqual(ra.curve(), rb.curve())
+
+
 if __name__ == "__main__":
     unittest.main()
