@@ -2,6 +2,7 @@
 does the critic's blind spot show up in the receipts, does the witness
 interop with harness/replay.py end to end?"""
 
+import json
 import os
 import tempfile
 import unittest
@@ -82,12 +83,13 @@ class TestWitnessInterop(unittest.TestCase):
             path = f.name
         try:
             r.write_witness(path)
-            lines = open(path).readlines()
-            import json
+            with open(path) as fh:
+                lines = fh.readlines()
             forged = json.loads(lines[1])
             forged["metrics"] = {"measured_speedup": 99.9}   # result forgery
             lines[1] = json.dumps(forged) + "\n"
-            open(path, "w").writelines(lines)
+            with open(path, "w") as fh:
+                fh.writelines(lines)
             cells = read_log_all(path)
             replayed = verify_log(cells)
             with self.assertRaises(Exception):
