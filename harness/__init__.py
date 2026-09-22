@@ -13,6 +13,7 @@ from .witness import WitnessCell, WitnessFormatError, read_log, read_log_all
 from .replay import verify_log, ReplayReport
 from .score import composite, normalize_field, field_bests, LOWER_IS_BETTER
 from .gates import run_gates, GateFailure
+from .continuation import split_log, verify_continuation
 
 __all__ = [
     "fnv1a64", "hash16", "hash_int", "cell_hash",
@@ -20,5 +21,5 @@ __all__ = [
     "WitnessCell", "WitnessFormatError", "read_log", "read_log_all",
     "verify_log", "ReplayReport",
     "composite", "normalize_field", "field_bests", "LOWER_IS_BETTER",
-    "run_gates", "GateFailure",
+    "run_gates", "GateFailure", "split_log", "verify_continuation",
 ]
