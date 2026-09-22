@@ -102,3 +102,54 @@ competing for joules.
   generation budget in the rules, or the loop becomes a wallet race).
 - CPU-fallback demonstration ≠ 4090 truth; standardization still the
   host's burden (spec's open questions stand).
+
+---
+
+## Rounds R1–R5 — the wheel turns (2026-09-22)
+
+The referee now exists and the generator side (`gan/`) runs the whole loop
+CPU-real. Each round found something real; each fix is on the record.
+
+**R1 — the format forgery hole.** First `gan/` run exported metrics as a
+sidecar field outside the hashed payload; the runner's own tamper test
+forged `measured_speedup` and the referee passed it — the chain proved the
+cell existed, not what it measured. **Fix (design-level):** measurements
+and predictions ride INSIDE `state_json`'s payload, and `replay.verify_log`
+cross-checks the `metrics`/`prediction` fields against the hashed payload —
+a field/payload disagreement is a chain break. Doctrine, now enforced:
+a result that isn't in the hash is a withdrawal.
+
+**R2 — the critic's blind spot, exposed by its own receipts.** `MockBench.predict`
+deliberately omits the unroll-register-spill penalty. Early runs showed the
+lineage learning what the critic cannot see: selection reads measurement,
+not belief, and stops proposing `unroll>4` even while the predictor still
+loves it. Critic MSE falls monotonically across generations (0.043 → 0.008
+at seed 7) — the receipts calibrate the critic for free.
+
+**R3 — modeling bug caught by test, not vibes.** The spill penalty's first
+form clamped the unroll factor at 0.4, which made `unroll=8` the *optimum* —
+a negative-cost fantasy exactly where the critic was supposed to be blind.
+The grid-search test (`test_bench_has_real_optimum_inside_ranges`) caught it
+numerically. Penalties must add cost, not subtract it.
+
+**R4 — elitism honesty.** Tournament-pick-as-elite let the recorded
+best-of-generation dip below the previous generation's best (the tournament
+winner ≠ the population best). True elitism (the actual best carries
+forward) makes the curve monotone — a curve that dips is a curve that lies.
+Test now asserts `curve == sorted(curve)`.
+
+**R5 — plateaus get kicked, not worshipped.** With true elitism the lineage
+sat on cand-7's local optimum for five generations (coherence perfect,
+progress flat). Added stagnation-triggered mutation heat: two flat
+generations → step size ×3. Escape landed at gen 5 with +18% over the
+plateau, then held. Deterministic under seed; asserted at 8 generations.
+
+**Interop proof (cross-repo).** `SuperInstance/code-city`'s vendored kernel
+(toy city, JS) exported a 67-cell witness from a simulated session;
+`harness/replay.py` verified 67/67, coherence 1.0, gates green. A toy city
+is now a witness-log producer whose exports the referee replays verbatim —
+"the substrate that evolves its own inference" has a browser front end.
+
+Current state: 26/26 `python3 -m unittest` green (15 harness + 11 runner);
+`python3 -m gan.runner --gens 7` prints the gen-by-gen curve with critic
+MSE; swap `MockBench.cost` for a real eval and nothing else moves.
