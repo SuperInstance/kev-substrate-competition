@@ -64,6 +64,19 @@ def verify_log(cells: List[WitnessCell]) -> ReplayReport:
         recomputed = cell_hash(c.cell_id, c.state_json, c.answers_json, c.prev_hash)
         if hash_int(recomputed) != hash_int(c.cell_hash):
             reasons.append("cell_hash mismatch (payload tampered)")
+        # FIELD/PAYLOAD CROSS-CHECK: metrics and prediction must match the
+        # HASHED payload, or a forger rewrites results without breaking
+        # the chain (caught by the runner's own tamper test, 2026-09-22).
+        import json as _json
+        try:
+            body = _json.loads(c.state_json)
+            pl = body.get("payload", {}) if isinstance(body, dict) else {}
+            if "metrics" in pl and pl["metrics"] != c.metrics:
+                reasons.append("metrics field disagrees with hashed payload")
+            if "prediction" in pl and pl["prediction"] != c.prediction:
+                reasons.append("prediction field disagrees with hashed payload")
+        except (ValueError, AttributeError):
+            pass  # state_json shape is the format layer's job, not replay's
         prior = conv_last.get(c.conv_id)
         if prior is None:
             if c.prev_hash != GENESIS_PREV_HASH:
